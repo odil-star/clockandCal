@@ -1,0 +1,193 @@
+.clock {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 2.4vw, 20px);
+  width: 100%;
+  padding: clamp(20px, 3.6vw, 36px) clamp(16px, 3.6vw, 40px);
+  border-radius: var(--r-xl);
+  background: linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.08),
+      rgba(255, 255, 255, 0.015)
+    ),
+    var(--glass);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  animation: clock-in 900ms var(--ease) both;
+}
+
+/* Градиентная кромка карточки */
+.clock::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.5),
+    rgba(255, 255, 255, 0.05) 35%,
+    rgba(124, 92, 255, 0.45) 70%,
+    rgba(35, 213, 171, 0.4)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.clock__time {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: clamp(2.3rem, 7vw, 4.6rem);
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock__unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(180deg, #ffffff 20%, #b9c2e6 75%, #8c96bd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 60px rgba(124, 92, 255, 0.35);
+}
+
+.clock__unit--sec {
+  background: linear-gradient(180deg, var(--accent-2), #12a887);
+  -webkit-background-clip: text;
+  background-clip: text;
+  font-size: 0.44em;
+  align-self: center;
+  letter-spacing: 0.02em;
+}
+
+.clock__label {
+  margin-top: 10px;
+  font-family: var(--font);
+  font-size: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  -webkit-text-fill-color: var(--ink-dim);
+}
+
+.clock__unit--sec .clock__label {
+  font-size: 0.22em;
+  margin-top: 8px;
+}
+
+.clock__sep {
+  color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-0.08em);
+  animation: blink 2s steps(1, end) infinite;
+}
+
+/* Индикатор заполнения минуты */
+.clock__progress {
+  position: relative;
+  width: min(100%, 340px);
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.clock__progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform: scaleX(var(--progress, 0));
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-3), var(--accent-2));
+  box-shadow: 0 0 18px rgba(124, 92, 255, 0.6);
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.clock__date {
+  font-size: clamp(0.72rem, 1.6vw, 0.88rem);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+@keyframes clock-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+    filter: blur(12px);
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.22;
+  }
+}
+
+/* ---------- Адаптив ---------- */
+@media (max-width: 900px) {
+  .clock {
+    max-width: 420px;
+    margin-inline: auto;
+  }
+}
+
+/* Узкий экран: часы становятся нижней частью карточки калькулятора */
+@media (max-width: 560px) {
+  .clock {
+    order: 2;
+    max-width: none;
+    gap: 12px;
+    padding: 16px 0 0;
+    border-radius: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    animation: none;
+  }
+
+  .clock::before {
+    display: none;
+  }
+
+  .clock__time {
+    font-size: clamp(1.9rem, 11vw, 2.6rem);
+  }
+
+  .clock__label {
+    display: none;
+  }
+
+  .clock__date {
+    letter-spacing: 0.14em;
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock,
+  .clock__sep {
+    animation: none;
+  }
+
+  .clock__progress::after {
+    transition: none;
+  }
+}

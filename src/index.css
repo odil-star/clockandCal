@@ -1,0 +1,149 @@
+:root {
+  color-scheme: dark;
+
+  /* Палитра */
+  --bg-deep: #04050a;
+  --bg-soft: #0b0f1d;
+  --ink: #f2f5ff;
+  --ink-dim: #8a93b2;
+  --ink-faint: #5b6382;
+
+  --accent-1: #7c5cff;
+  --accent-2: #23d5ab;
+  --accent-3: #ff6ac1;
+
+  /* Стекло */
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-strong: rgba(255, 255, 255, 0.08);
+  --glass-line: rgba(255, 255, 255, 0.12);
+
+  /* Радиусы и тени */
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 28px;
+  --r-xl: 32px;
+  --shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.85);
+
+  /* Ритм */
+  --gap: clamp(12px, 2.4vw, 22px);
+  --pad-x: clamp(12px, 4vw, 36px);
+
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono",
+    Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Общий масштаб интерфейса: 16px → 14px */
+  font-size: 87.5%;
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  color: var(--ink);
+  background: radial-gradient(120% 120% at 50% 0%, var(--bg-soft), var(--bg-deep) 60%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Живые световые пятна на фоне */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  z-index: 0;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+body::before {
+  top: -22vmax;
+  left: -12vmax;
+  background: radial-gradient(circle, var(--accent-1), transparent 65%);
+  animation: drift-a 22s ease-in-out infinite;
+}
+
+body::after {
+  right: -16vmax;
+  bottom: -24vmax;
+  background: radial-gradient(circle, var(--accent-2), transparent 65%);
+  animation: drift-b 28s ease-in-out infinite;
+}
+
+@keyframes drift-a {
+  50% {
+    transform: translate3d(12vmax, 8vmax, 0) scale(1.15);
+  }
+}
+
+@keyframes drift-b {
+  50% {
+    transform: translate3d(-10vmax, -6vmax, 0) scale(1.1);
+  }
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:where(a, button, input):focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+::selection {
+  background: rgba(124, 92, 255, 0.45);
+}
+
+/* Аккуратный скроллбар */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  body::before,
+  body::after {
+    animation: none;
+  }
+}
