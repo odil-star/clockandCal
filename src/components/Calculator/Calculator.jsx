@@ -82,6 +82,7 @@ const sanitizePasted = (text) =>
 
 /* Микрозайм: наценка в процентах от текущей суммы */
 const MICROLOAN_RATES = [5, 44];
+const MICROLOAN_MONTHS = 12;
 
 const buttonClass = (value) => {
     if (value === "=") return "calc__key calc__key--equals";
@@ -91,7 +92,7 @@ const buttonClass = (value) => {
     return "calc__key";
 };
 
-const Calculator = () => {
+const BasicCalculator = ({ onMicroloan }) => {
     const [display, setDisplay] = useState("")
     const [active, setActive] = useState({ value: null, id: 0 })
     const displayRef = useRef(null)
@@ -142,17 +143,14 @@ const Calculator = () => {
         } catch { /* нет доступа к буферу */ }
     };
 
-    /* Микрозайм: сумма + N% */
-    const applyMicroloan = (rate) => {
-        setDisplay((prev) => {
-            const base = previewResult(prev) ?? prev;
-            try {
-                const result = roundResult(eval(base) * (1 + rate / 100));
-                return result ?? prev;
-            } catch {
-                return prev;
-            }
-        });
+    /* Открываем экран микрозайма, подставив текущую сумму */
+    const openMicroloan = () => {
+        try {
+            const sum = Number(roundResult(eval(currentValue())));
+            onMicroloan(Number.isFinite(sum) && sum > 0 ? String(sum) : "");
+        } catch {
+            onMicroloan("");
+        }
     };
 
     /* Ctrl+C / Ctrl+V */
@@ -215,6 +213,14 @@ const Calculator = () => {
 
     return (
         <div className="calculator">
+            <button
+                type="button"
+                className="calc__action calc__action--loan"
+                onClick={openMicroloan}
+            >
+                Микрозайм
+            </button>
+
             <div className="calc__screen">
                 <span className="calc__hint">Выражение</span>
                 <input
@@ -260,28 +266,102 @@ const Calculator = () => {
                 ))}
             </div>
 
-            <div className="calc__loan">
-                <span className="calc__loan-title">Микрозайм</span>
-                <div className="calc__loan-keys">
-                    {MICROLOAN_RATES.map((rate) => (
-                        <button
-                            key={rate}
-                            type="button"
-                            className="calc__action calc__action--loan"
-                            onClick={() => applyMicroloan(rate)}
-                        >
-                            Сумма + {rate}%
-                        </button>
-                    ))}
-                </div>
-            </div>
-
             <p className="calc__tip">
                 С клавиатуры: <b>0–9</b> · <b>+ − * /</b> · <b>Enter</b> — результат ·{" "}
                 <b>Backspace</b> — стереть · <b>Esc</b> — сброс ·{" "}
                 <b>Ctrl+C</b> / <b>Ctrl+V</b> — копировать / вставить
             </p>
         </div>
+    );
+};
+
+/* Микрозайм: сумма → +5% → +44% (каждая наценка на предыдущий итог) */
+const MicroLoan = ({ initialSum, onBack }) => {
+    const [sum, setSum] = useState(initialSum)
+    const [result, setResult] = useState(null)
+
+    const handleChange = (event) => {
+        const clean = event.target.value
+            .replace(/\s/g, "")
+            .replace(/,/g, ".")
+            .replace(/[^\d.]/g, "")
+            .replace(/^(\d*\.\d*)\./, "$1");
+        setSum(clean);
+        setResult(null);
+    };
+
+    const calculate = () => {
+        const base = Number(sum);
+        if (!Number.isFinite(base) || base <= 0) return;
+
+        let total = base;
+        const steps = MICROLOAN_RATES.map((rate) => {
+            const extra = Math.round(total * rate) / 100;
+            total = Math.round((total + extra) * 100) / 100;
+            return { rate, extra, total };
+        });
+        const monthly = Math.round((total / MICROLOAN_MONTHS) * 100) / 100;
+        setResult({ base, steps, total, monthly });
+    };
+
+    return (
+        <div className="calculator calculator--loan">
+            <div className="calc__screen">
+                <span className="calc__hint">Микрозайм · введите сумму</span>
+                <input
+                    className={"calc__display" + displaySizeClass(groupNumber(sum))}
+                    value={groupNumber(sum)}
+                    onChange={handleChange}
+                    onKeyDown={(event) => event.key === "Enter" && calculate()}
+                    placeholder="0"
+                    inputMode="decimal"
+                    autoFocus
+                    aria-label="Сумма займа"
+                />
+                <div className="calc__preview" />
+            </div>
+
+            <button
+                type="button"
+                className="calc__key calc__key--equals calc__key--cta"
+                onClick={calculate}
+            >
+                Посчитать
+            </button>
+
+            {result && (
+                <dl className="calc__loan-table">
+                    <div>
+                        <dt>Сумма</dt>
+                        <dd>{groupNumber(String(result.base))}</dd>
+                    </div>
+                    {result.steps.map(({ rate, extra, total }) => (
+                        <div key={rate}>
+                            <dt>+ {rate}% ({groupNumber(String(extra))})</dt>
+                            <dd>{groupNumber(String(total))}</dd>
+                        </div>
+                    ))}
+                    <div>
+                        <dt>÷ {MICROLOAN_MONTHS} мес.</dt>
+                        <dd>{groupNumber(String(result.monthly))}</dd>
+                    </div>
+                </dl>
+            )}
+
+            <button type="button" className="calc__action" onClick={onBack}>
+                ← Калькулятор
+            </button>
+        </div>
+    );
+};
+
+const Calculator = () => {
+    const [loanSum, setLoanSum] = useState(null)
+
+    return loanSum === null ? (
+        <BasicCalculator onMicroloan={setLoanSum} />
+    ) : (
+        <MicroLoan initialSum={loanSum} onBack={() => setLoanSum(null)} />
     );
 };
 

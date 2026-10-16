@@ -198,8 +198,7 @@
 }
 
 /* ---------- Буфер и микрозайм ---------- */
-.calc__clip,
-.calc__loan-keys {
+.calc__clip {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(9px, 1.6vw, 13px);
@@ -231,18 +230,41 @@
   border-color: rgba(35, 213, 171, 0.22);
 }
 
-.calc__loan {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.calc__key--cta {
+  aspect-ratio: auto;
+  padding: 18px;
 }
 
-.calc__loan-title {
-  font-size: 0.72rem;
+.calc__loan-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.35);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  animation: preview-in 240ms var(--ease);
+}
+
+.calc__loan-table > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.calc__loan-table dt {
+  color: var(--ink-dim);
+}
+
+.calc__loan-table dd {
+  margin: 0;
+  color: var(--accent-2);
+  text-align: right;
+}
+
+.calc__loan-table > div:last-child dd {
   font-weight: 600;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
 }
 
 /* ---------- Подсказка ---------- */
