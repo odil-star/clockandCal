@@ -76,6 +76,13 @@ const displaySizeClass = (text) => {
     return "";
 };
 
+/* Из буфера оставляем только то, что умеет калькулятор: 1 234,5 → 1234.5 */
+const sanitizePasted = (text) =>
+    text.replace(/\s/g, "").replace(/,/g, ".").replace(/[^\d+\-*/%.]/g, "");
+
+/* Микрозайм: наценка в процентах от текущей суммы */
+const MICROLOAN_RATES = [5, 44];
+
 const buttonClass = (value) => {
     if (value === "=") return "calc__key calc__key--equals";
     if (operators.includes(value)) return "calc__key calc__key--op";
@@ -108,6 +115,67 @@ const Calculator = () => {
             setDisplay((prev) => prev + vale)
         }
     }
+
+    /* Текущая сумма: готовый ответ, а если выражение не закончено — промежуточный */
+    const currentValue = () => {
+        const text = displayRef.current?.dataset.raw ?? "";
+        if (!text) return "";
+        return previewResult(text) ?? text;
+    };
+
+    const insertText = (text) => {
+        const clean = sanitizePasted(text);
+        if (clean) setDisplay((prev) => prev + clean);
+    };
+
+    const copyValue = async () => {
+        const value = currentValue();
+        if (!value) return;
+        try {
+            await navigator.clipboard.writeText(value);
+        } catch { /* буфер недоступен */ }
+    };
+
+    const pasteValue = async () => {
+        try {
+            insertText(await navigator.clipboard.readText());
+        } catch { /* нет доступа к буферу */ }
+    };
+
+    /* Микрозайм: сумма + N% */
+    const applyMicroloan = (rate) => {
+        setDisplay((prev) => {
+            const base = previewResult(prev) ?? prev;
+            try {
+                const result = roundResult(eval(base) * (1 + rate / 100));
+                return result ?? prev;
+            } catch {
+                return prev;
+            }
+        });
+    };
+
+    /* Ctrl+C / Ctrl+V */
+    useEffect(() => {
+        const handleCopy = (event) => {
+            const value = currentValue();
+            if (!value || window.getSelection()?.toString()) return;
+            event.clipboardData.setData("text/plain", value);
+            event.preventDefault();
+        };
+
+        const handlePaste = (event) => {
+            event.preventDefault();
+            insertText(event.clipboardData.getData("text"));
+        };
+
+        document.addEventListener("copy", handleCopy);
+        document.addEventListener("paste", handlePaste);
+        return () => {
+            document.removeEventListener("copy", handleCopy);
+            document.removeEventListener("paste", handlePaste);
+        };
+    }, []);
 
     /* Ввод с физической клавиатуры */
     useEffect(() => {
@@ -153,6 +221,7 @@ const Calculator = () => {
                     ref={displayRef}
                     className={"calc__display" + displaySizeClass(formatted)}
                     value={formatted}
+                    data-raw={display}
                     placeholder="0"
                     readOnly
                     aria-label="Результат вычисления"
@@ -163,6 +232,15 @@ const Calculator = () => {
                         <span>= {formatExpression(preview)}</span>
                     )}
                 </div>
+            </div>
+
+            <div className="calc__clip">
+                <button type="button" className="calc__action" onClick={copyValue}>
+                    Копировать
+                </button>
+                <button type="button" className="calc__action" onClick={pasteValue}>
+                    Вставить
+                </button>
             </div>
 
             <div className="calc__keys">
@@ -182,9 +260,26 @@ const Calculator = () => {
                 ))}
             </div>
 
+            <div className="calc__loan">
+                <span className="calc__loan-title">Микрозайм</span>
+                <div className="calc__loan-keys">
+                    {MICROLOAN_RATES.map((rate) => (
+                        <button
+                            key={rate}
+                            type="button"
+                            className="calc__action calc__action--loan"
+                            onClick={() => applyMicroloan(rate)}
+                        >
+                            Сумма + {rate}%
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             <p className="calc__tip">
                 С клавиатуры: <b>0–9</b> · <b>+ − * /</b> · <b>Enter</b> — результат ·{" "}
-                <b>Backspace</b> — стереть · <b>Esc</b> — сброс
+                <b>Backspace</b> — стереть · <b>Esc</b> — сброс ·{" "}
+                <b>Ctrl+C</b> / <b>Ctrl+V</b> — копировать / вставить
             </p>
         </div>
     );
