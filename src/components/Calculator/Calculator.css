@@ -267,7 +267,195 @@
   font-weight: 600;
 }
 
-/* ---------- Подсказка ---------- */
+.calc__screen .calc__display:focus,
+.calc__screen .calc__display:focus-visible {
+  outline: none;
+  border: 0;
+  box-shadow: none;
+}
+
+/* Настройки микрозайма */
+.calc__settings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calc__settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.calc__settings span {
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
+
+.calc__settings input {
+  width: 100%;
+  padding: 10px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.35);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  text-align: center;
+  transition: background-color 200ms var(--ease);
+}
+
+.calc__settings input:focus,
+.calc__settings input:focus-visible {
+  outline: none;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Строка досрочного погашения копируется по клику */
+.calc__early-row {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 160ms var(--ease);
+}
+
+.calc__early-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.calc__early-row dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.calc__early-row small {
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
+
+/* История вычислений */
+.calc__history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.3);
+  animation: preview-in 240ms var(--ease);
+}
+
+.calc__history-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.calc__history-head button {
+  border: 0;
+  background: none;
+  font-size: 0.75rem;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.calc__history ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calc__history li button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms var(--ease);
+}
+
+.calc__history li button:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.calc__history li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-dim);
+}
+
+.calc__history li b {
+  flex-shrink: 0;
+  font-weight: 500;
+  color: var(--accent-2);
+}
+
+.calc__early-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: rgba(0, 0, 0, 0.35);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.calc__early-arrow {
+  transition: transform 300ms var(--ease);
+}
+
+.calc__early-box.is-open .calc__early-title {
+  color: var(--accent-2);
+}
+
+.calc__early-box.is-open .calc__early-arrow {
+  transform: rotate(180deg);
+}
+
+/* Плавное раскрытие: высота 0 → авто без скачка вёрстки */
+.calc__early-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 300ms var(--ease), opacity 300ms var(--ease);
+}
+
+.calc__early-body > .calc__loan-table {
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 0;
+  animation: none;
+}
+
+.calc__early-box.is-open .calc__early-body {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.calc__early-box.is-open .calc__early-body > .calc__loan-table {
+  margin-top: 6px;
+}
+
 .calc__tip {
   font-size: 0.74rem;
   line-height: 1.7;

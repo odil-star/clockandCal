@@ -45,6 +45,20 @@ const groupNumber = (number) => {
 const formatExpression = (expression) =>
     expression.replace(/\d+(\.\d+)?/g, groupNumber);
 
+/* Проценты как на обычном калькуляторе:
+   200+10% → 200+20, 200-10% → 200-20, 200*10% → 200*0.1, 50% → 0.5 */
+const toEvaluable = (expression) => {
+    /* «база ± N%» — процент берётся от всего, что стоит слева */
+    const withBase = expression.replace(
+        /^(.+)([+-])(\d+(?:\.\d+)?)%/,
+        "($1)$2(($1)*$3/100)"
+    );
+    /* остальные «N%» — просто сотая часть */
+    return withBase.replace(/(\d+(?:\.\d+)?)%/g, "($1/100)");
+};
+
+const evaluate = (expression) => eval(toEvaluable(expression));
+
 /* Убираем хвост вида 0.30000000000000004 */
 const roundResult = (value) => {
     if (!Number.isFinite(value)) return null;
@@ -63,7 +77,7 @@ const previewResult = (expression) => {
     if (!trimmed || !/[+\-*/%]/.test(trimmed.slice(1))) return null;
 
     try {
-        return roundResult(eval(trimmed));
+        return roundResult(evaluate(trimmed));
     } catch {
         return null;
     }
@@ -84,6 +98,38 @@ const sanitizePasted = (text) =>
 const MICROLOAN_RATES = [5, 44];
 const MICROLOAN_MONTHS = 12;
 
+/* Досрочное погашение: какой процент (из 44%) набегает к концу каждого месяца */
+const EARLY_PERCENTS = [0, 7, 11, 15, 18, 22, 26, 29, 33, 37, 40, 44];
+
+/* Процент досрочного погашения для месяца m из n: таблица растягивается на любой срок */
+const earlyPercent = (month, months, lastRate) => {
+    const last = EARLY_PERCENTS.length - 1;
+    const position = months > 1 ? ((month - 1) / (months - 1)) * last : 0;
+    const low = Math.floor(position);
+    const high = Math.min(low + 1, last);
+    const share = EARLY_PERCENTS[low] + (EARLY_PERCENTS[high] - EARLY_PERCENTS[low]) * (position - low);
+    return Math.round((share / EARLY_PERCENTS[last]) * lastRate * 100) / 100;
+};
+
+/* Небольшое хранилище в localStorage — если недоступно, просто не сохраняем */
+const store = {
+    get(key, fallback) {
+        try {
+            const raw = localStorage.getItem(key);
+            return raw === null ? fallback : JSON.parse(raw);
+        } catch {
+            return fallback;
+        }
+    },
+    set(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch { /* хранилище недоступно */ }
+    },
+};
+
+const HISTORY_LIMIT = 8;
+
 const buttonClass = (value) => {
     if (value === "=") return "calc__key calc__key--equals";
     if (operators.includes(value)) return "calc__key calc__key--op";
@@ -95,7 +141,21 @@ const buttonClass = (value) => {
 const BasicCalculator = ({ onMicroloan }) => {
     const [display, setDisplay] = useState("")
     const [active, setActive] = useState({ value: null, id: 0 })
+    const [history, setHistory] = useState(() => store.get("calc-history", []))
     const displayRef = useRef(null)
+
+    const pushHistory = (expression, result) => {
+        setHistory((prev) => {
+            const next = [{ expression, result }, ...prev].slice(0, HISTORY_LIMIT);
+            store.set("calc-history", next);
+            return next;
+        });
+    };
+
+    const clearHistory = () => {
+        setHistory([]);
+        store.set("calc-history", []);
+    };
 
     const handleInput = (vale) => {
         setActive((prev) => ({ value: vale, id: prev.id + 1 }))
@@ -105,13 +165,17 @@ const BasicCalculator = ({ onMicroloan }) => {
         } else if (vale === "⌫") {
             setDisplay((perv) => perv.slice(0, -1));
         } else if (vale === "=") {
-            setDisplay((prev) => {
-                try {
-                    return roundResult(eval(prev)) ?? "ЕЙ ТЫ ЧЕГО"
-                } catch {
-                    return "ЕЙ ТЫ ЧЕГО"
-                }
-            });
+            const expression = displayRef.current?.dataset.raw ?? "";
+            let result;
+            try {
+                result = roundResult(evaluate(expression));
+            } catch {
+                result = null;
+            }
+            if (result !== null && result !== undefined && expression !== result) {
+                pushHistory(expression, result);
+            }
+            setDisplay(result ?? "ЕЙ ТЫ ЧЕГО");
         } else {
             setDisplay((prev) => prev + vale)
         }
@@ -146,7 +210,7 @@ const BasicCalculator = ({ onMicroloan }) => {
     /* Открываем экран микрозайма, подставив текущую сумму */
     const openMicroloan = () => {
         try {
-            const sum = Number(roundResult(eval(currentValue())));
+            const sum = Number(roundResult(evaluate(currentValue())));
             onMicroloan(Number.isFinite(sum) && sum > 0 ? String(sum) : "");
         } catch {
             onMicroloan("");
@@ -266,6 +330,29 @@ const BasicCalculator = ({ onMicroloan }) => {
                 ))}
             </div>
 
+            {history.length > 0 && (
+                <div className="calc__history">
+                    <div className="calc__history-head">
+                        <span>История</span>
+                        <button type="button" onClick={clearHistory}>Очистить</button>
+                    </div>
+                    <ul>
+                        {history.map(({ expression, result }, index) => (
+                            <li key={index}>
+                                <button
+                                    type="button"
+                                    onClick={() => setDisplay(result)}
+                                    title="Подставить результат"
+                                >
+                                    <span>{formatExpression(expression)}</span>
+                                    <b>= {formatExpression(result)}</b>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             <p className="calc__tip">
                 С клавиатуры: <b>0–9</b> · <b>+ − * /</b> · <b>Enter</b> — результат ·{" "}
                 <b>Backspace</b> — стереть · <b>Esc</b> — сброс ·{" "}
@@ -276,9 +363,29 @@ const BasicCalculator = ({ onMicroloan }) => {
 };
 
 /* Микрозайм: сумма → +5% → +44% (каждая наценка на предыдущий итог) */
+const DEFAULT_SETTINGS = {
+    months: String(MICROLOAN_MONTHS),
+    rate1: String(MICROLOAN_RATES[0]),
+    rate2: String(MICROLOAN_RATES[1]),
+};
+
+/* Число из поля с запасным значением и границами */
+const toNumber = (text, fallback, min, max) => {
+    const value = Number(text);
+    if (text === "" || !Number.isFinite(value)) return fallback;
+    return Math.min(Math.max(value, min), max);
+};
+
 const MicroLoan = ({ initialSum, onBack }) => {
-    const [sum, setSum] = useState(initialSum)
+    /* Пришла сумма с калькулятора — берём её, иначе последнюю сохранённую */
+    const [sum, setSum] = useState(() => initialSum || store.get("loan-sum", ""))
+    const [settings, setSettings] = useState(() => ({
+        ...DEFAULT_SETTINGS,
+        ...store.get("loan-settings", {}),
+    }))
     const [result, setResult] = useState(null)
+    const [earlyOpen, setEarlyOpen] = useState(false)
+    const [copiedMonth, setCopiedMonth] = useState(null)
 
     const handleChange = (event) => {
         const clean = event.target.value
@@ -287,6 +394,17 @@ const MicroLoan = ({ initialSum, onBack }) => {
             .replace(/[^\d.]/g, "")
             .replace(/^(\d*\.\d*)\./, "$1");
         setSum(clean);
+        store.set("loan-sum", clean);
+        setResult(null);
+    };
+
+    const handleSetting = (name) => (event) => {
+        const value = event.target.value.replace(/,/g, ".").replace(/[^\d.]/g, "");
+        setSettings((prev) => {
+            const next = { ...prev, [name]: value };
+            store.set("loan-settings", next);
+            return next;
+        });
         setResult(null);
     };
 
@@ -294,14 +412,41 @@ const MicroLoan = ({ initialSum, onBack }) => {
         const base = Number(sum);
         if (!Number.isFinite(base) || base <= 0) return;
 
+        const months = Math.round(toNumber(settings.months, MICROLOAN_MONTHS, 1, 60));
+        const rates = [
+            toNumber(settings.rate1, MICROLOAN_RATES[0], 0, 1000),
+            toNumber(settings.rate2, MICROLOAN_RATES[1], 0, 1000),
+        ];
+
         let total = base;
-        const steps = MICROLOAN_RATES.map((rate) => {
+        const steps = rates.map((rate) => {
             const extra = Math.round(total * rate) / 100;
             total = Math.round((total + extra) * 100) / 100;
             return { rate, extra, total };
         });
-        const monthly = Math.round((total / MICROLOAN_MONTHS) * 100) / 100;
-        setResult({ base, steps, total, monthly });
+        const monthly = Math.round((total / months) * 100) / 100;
+        /* Сумма после первой наценки; вторая наценка берётся не целиком, а по месяцам */
+        const afterFirst = steps[0].total;
+        const early = Array.from({ length: months }, (_, index) => {
+            const percent = earlyPercent(index + 1, months, rates[1]);
+            const amount = Math.round(afterFirst * (100 + percent)) / 100;
+            return {
+                month: index + 1,
+                percent,
+                amount,
+                saved: Math.max(Math.round((total - amount) * 100) / 100, 0),
+            };
+        });
+        store.set("loan-sum", sum);
+        setResult({ base, steps, total, monthly, months, early });
+    };
+
+    const copyAmount = async (month, amount) => {
+        try {
+            await navigator.clipboard.writeText(String(amount));
+            setCopiedMonth(month);
+            setTimeout(() => setCopiedMonth((current) => (current === month ? null : current)), 1200);
+        } catch { /* буфер недоступен */ }
     };
 
     return (
@@ -319,6 +464,36 @@ const MicroLoan = ({ initialSum, onBack }) => {
                     aria-label="Сумма займа"
                 />
                 <div className="calc__preview" />
+            </div>
+
+            <div className="calc__settings">
+                <label>
+                    <span>Срок, мес.</span>
+                    <input
+                        value={settings.months}
+                        onChange={handleSetting("months")}
+                        inputMode="numeric"
+                        aria-label="Срок в месяцах"
+                    />
+                </label>
+                <label>
+                    <span>Наценка 1, %</span>
+                    <input
+                        value={settings.rate1}
+                        onChange={handleSetting("rate1")}
+                        inputMode="decimal"
+                        aria-label="Первая наценка в процентах"
+                    />
+                </label>
+                <label>
+                    <span>Наценка 2, %</span>
+                    <input
+                        value={settings.rate2}
+                        onChange={handleSetting("rate2")}
+                        inputMode="decimal"
+                        aria-label="Вторая наценка в процентах"
+                    />
+                </label>
             </div>
 
             <button
@@ -342,10 +517,47 @@ const MicroLoan = ({ initialSum, onBack }) => {
                         </div>
                     ))}
                     <div>
-                        <dt>÷ {MICROLOAN_MONTHS} мес.</dt>
+                        <dt>÷ {result.months} мес.</dt>
                         <dd>{groupNumber(String(result.monthly))}</dd>
                     </div>
                 </dl>
+            )}
+
+            {result && (
+                <div className={"calc__early-box" + (earlyOpen ? " is-open" : "")}>
+                    <button
+                        type="button"
+                        className="calc__early-title"
+                        aria-expanded={earlyOpen}
+                        onClick={() => setEarlyOpen((open) => !open)}
+                    >
+                        Досрочное погашение
+                        <span className="calc__early-arrow" aria-hidden="true">▾</span>
+                    </button>
+                    <div className="calc__early-body">
+                        <dl className="calc__loan-table calc__early">
+                            {result.early.map(({ month, percent, amount, saved }) => (
+                                <div
+                                    key={month}
+                                    className="calc__early-row"
+                                    role="button"
+                                    tabIndex={earlyOpen ? 0 : -1}
+                                    title="Копировать сумму"
+                                    onClick={() => copyAmount(month, amount)}
+                                    onKeyDown={(event) => event.key === "Enter" && copyAmount(month, amount)}
+                                >
+                                    <dt>{month} мес. — {percent}%</dt>
+                                    <dd>
+                                        {copiedMonth === month ? "скопировано" : groupNumber(String(amount))}
+                                        {saved > 0 && copiedMonth !== month && (
+                                            <small>−{groupNumber(String(saved))}</small>
+                                        )}
+                                    </dd>
+                                </div>
+                            ))}
+                        </dl>
+                    </div>
+                </div>
             )}
 
             <button type="button" className="calc__action" onClick={onBack}>
