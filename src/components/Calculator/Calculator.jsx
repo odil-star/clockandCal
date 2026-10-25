@@ -429,12 +429,17 @@ const MicroLoan = ({ initialSum, onBack }) => {
         const afterFirst = steps[0].total;
         const early = Array.from({ length: months }, (_, index) => {
             const percent = earlyPercent(index + 1, months, rates[1]);
-            const amount = Math.round(afterFirst * (100 + percent)) / 100;
+            /* К месяцу m уже внесено m−1 ежемесячных платежей — они вычитаются из суммы */
+            const paid = Math.round(monthly * index * 100) / 100;
+            const full = Math.round(afterFirst * (100 + percent)) / 100;
+            const amount = Math.max(Math.round((full - paid) * 100) / 100, 0);
             return {
                 month: index + 1,
                 percent,
+                paid,
                 amount,
-                saved: Math.max(Math.round((total - amount) * 100) / 100, 0),
+                /* Экономия против остатка по обычному графику */
+                saved: Math.max(Math.round((total - paid - amount) * 100) / 100, 0),
             };
         });
         store.set("loan-sum", sum);
@@ -536,7 +541,7 @@ const MicroLoan = ({ initialSum, onBack }) => {
                     </button>
                     <div className="calc__early-body">
                         <dl className="calc__loan-table calc__early">
-                            {result.early.map(({ month, percent, amount, saved }) => (
+                            {result.early.map(({ month, percent, paid, amount, saved }) => (
                                 <div
                                     key={month}
                                     className="calc__early-row"
@@ -546,7 +551,12 @@ const MicroLoan = ({ initialSum, onBack }) => {
                                     onClick={() => copyAmount(month, amount)}
                                     onKeyDown={(event) => event.key === "Enter" && copyAmount(month, amount)}
                                 >
-                                    <dt>{month} мес. — {percent}%</dt>
+                                    <dt>
+                                        {month} мес. — {percent}%
+                                        {paid > 0 && (
+                                            <small>оплачено {groupNumber(String(paid))}</small>
+                                        )}
+                                    </dt>
                                     <dd>
                                         {copiedMonth === month ? "скопировано" : groupNumber(String(amount))}
                                         {saved > 0 && copiedMonth !== month && (

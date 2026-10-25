@@ -328,6 +328,11 @@
   align-items: flex-end;
 }
 
+.calc__early-row dt {
+  display: flex;
+  flex-direction: column;
+}
+
 .calc__early-row small {
   font-size: 0.7rem;
   color: var(--ink-faint);
